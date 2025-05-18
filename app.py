@@ -1,14 +1,17 @@
+# Enable build tools for lightfm compilation
+
 import numpy as np
 from flask import Flask, request, jsonify
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
+import os
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Load LightFM objects (for mentees with interactions)
-with open('./lightfm_model_v2.pkl', 'rb') as f:
-    lightfm_model = pickle.load(f)
+with open('./hypird_v2.pkl', 'rb') as f:
+    hypird_model = pickle.load(f)
 
 with open('./mentee_encoder_v2.pkl', 'rb') as f:
     mentee_encoder = pickle.load(f)
@@ -21,7 +24,6 @@ with open('./mentee_features_v2.pkl', 'rb') as f:
 
 with open('./mentor_features_v2.pkl', 'rb') as f:
     lightfm_mentor_features = pickle.load(f)
-
 
 # Load content-based objects (for cold-start mentees)
 with open('./tfidf_vectorizer.pkl', 'rb') as f:
@@ -39,11 +41,9 @@ with open('./mentee_df.pkl', 'rb') as f:
 with open('./mentor_df_content.pkl', 'rb') as f:
     mentor_df = pickle.load(f)
 
-
 # Load interaction data to check for cold-start mentees
 with open('./interaction_df.pkl', 'rb') as f:
     interaction_df = pickle.load(f)
-
 
 # LightFM recommendation function (for mentees with interactions)
 def recommend_mentors(mentee_id, top_k=5):
@@ -59,7 +59,7 @@ def recommend_mentors(mentee_id, top_k=5):
         n_mentors = 80
         mentor_indices = np.arange(n_mentors)
         mentee_indices = np.repeat(mentee_idx, len(mentor_indices))
-        scores = lightfm_model.predict(
+        scores = hypird_model.predict(
             mentee_indices,
             mentor_indices,
             user_features=lightfm_mentee_features,
@@ -98,8 +98,8 @@ def recommend_mentors_content_based(mentee_id, top_k=3, weights=None):
             'skills': 0.4,
             'location': 0.15,
             'avg_rate': 0.2,
-            'avg_availability': 0.15,
-            'experience_years': 0.1
+            'avg_availability': 0.1,
+            'experience_years': 0.15
         }
 
     try:
@@ -158,19 +158,20 @@ def get_recommendations():
     if mentee_id is None:
         return jsonify({'error': 'mentee_id is required'}), 400
     else:
-      print("OK")
+        print("OK")
+
     try:
         # Ensure consistent column name (assuming 'Mentee_id' based on prior context)
-        has_interactions = mentee_id in interaction_df['MenteeId'].values
+        has_interactions = mentee_id in interaction_df['Mentee_id'].values
 
         if has_interactions:
             recommendations = recommend_mentors(mentee_id, top_k)
             method = "LightFM (Collaborative Filtering)"
-            # print("Hybrid")
+            print("Hybrid", end='\n\n')
         else:
             recommendations = recommend_mentors_content_based(mentee_id, top_k)
             method = "Content-Based (Skills, Location, Avg_rate, Avg_availability, Experience_years)"
-            print("content")
+            print("content", end='\n\n')
 
         if isinstance(recommendations, str):
             return jsonify({'error': recommendations}), 400
@@ -183,11 +184,7 @@ def get_recommendations():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-
-# Run the Flask app
+# Run the Flask app with Render's port
 if __name__ == '__main__':
-
-  # Run the Flask app
-  app.run(host='0.0.0.0', port=5000)  
-    # app.run(host='0.0.0.0', port=5000)
+    port = int(os.getenv("PORT", 5000))  # Use Render's PORT env variable, default to 5000
+    app.run(host='0.0.0.0', port=port)
