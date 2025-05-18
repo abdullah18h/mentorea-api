@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 COPY . .
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "app:app"]
