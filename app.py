@@ -223,22 +223,16 @@ def get_recommendations():
         return jsonify({'error': 'All m_skills must be strings'}), 400
 
     try:
-        has_interactions = mentee_id in interaction_df['MenteeId'].values
+        
+        at_mentee_df = mentee_id in mentee_df['Id'].values
 
-        if has_interactions:
-            recommendations = recommend_mentors(mentee_id, top_k)
-            method = "LightFM (Collaborative Filtering)"
+        if at_mentee_df:
+            recommendations = recommend_mentors_content_based(mentee_id, top_k)
+            method = "Content-Based (Skills, Location, Avg_rate, Avg_availability, Experience_years)"
 
         else:
-            at_mentee_df = mentee_id in mentee_df['Id'].values
-
-            if at_mentee_df:
-                recommendations = recommend_mentors_content_based(mentee_id, top_k)
-                method = "Content-Based (Skills, Location, Avg_rate, Avg_availability, Experience_years)"
-
-            else:
-              recommendations = recommend_mentors_content_based_skills(m_skills)
-              method = "skils"
+            recommendations = recommend_mentors_content_based_skills(m_skills)
+            method = "skils"
 
         if isinstance(recommendations, str):
             return jsonify({'error': recommendations}), 400
